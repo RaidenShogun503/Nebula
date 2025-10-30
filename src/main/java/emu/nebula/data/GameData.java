@@ -49,6 +49,7 @@ public class GameData {
     
     @Getter private static DataTable<WorldClassDef> WorldClassDataTable = new DataTable<>();
     @Getter private static DataTable<GuideGroupDef> GuideGroupDataTable = new DataTable<>();
+    @Getter private static DataTable<HandbookDef> HandbookDataTable = new DataTable<>();
     @Getter private static DataTable<StoryDef> StoryDataTable = new DataTable<>();
     @Getter private static DataTable<StorySetSectionDef> StorySetSectionDataTable = new DataTable<>();
     

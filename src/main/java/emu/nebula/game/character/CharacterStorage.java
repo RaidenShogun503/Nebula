@@ -8,6 +8,7 @@ import emu.nebula.data.resources.CharacterDef;
 import emu.nebula.data.resources.DiscDef;
 import emu.nebula.game.player.PlayerManager;
 import emu.nebula.game.player.Player;
+import emu.nebula.game.player.PlayerHandbook;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.Getter;
@@ -68,6 +69,21 @@ public class CharacterStorage extends PlayerManager {
         return this.getCharacters().values();
     }
     
+    public PlayerHandbook getCharacterHandbook() {
+        var handbook = new PlayerHandbook(1);
+        
+        for (var character : this.getCharacterCollection()) {
+            // Get handbook
+            var data = GameData.getHandbookDataTable().get(400000 + character.getSkin());
+            if (data == null) continue;
+            
+            // Set flag
+            handbook.setBit(data.getIndex());
+        }
+        
+        return handbook;
+    }
+    
     // Discs
 
     public GameDisc getDiscById(int id) {
@@ -112,6 +128,20 @@ public class CharacterStorage extends PlayerManager {
         return this.getDiscs().values();
     }
     
+    public PlayerHandbook getDiscHandbook() {
+        var handbook = new PlayerHandbook(2);
+        
+        for (var disc : this.getDiscCollection()) {
+            // Get handbook
+            var data = GameData.getHandbookDataTable().get(disc.getDiscId());
+            if (data == null) continue;
+            
+            // Set flag
+            handbook.setBit(data.getIndex());
+        }
+        
+        return handbook;
+    }
     
     // Database
     

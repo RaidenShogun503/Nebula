@@ -33,6 +33,7 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import lombok.Getter;
+import us.hebi.quickbuf.RepeatedInt;
 
 @Getter
 @Entity(value = "players", useDiscriminator = false)
@@ -56,7 +57,7 @@ public class Player implements GameDatabaseObject {
     
     private int energy;
    
-    private IntSet boards;
+    private int[] boards;
     private IntSet headIcons;
     private IntSet titles;
     
@@ -101,7 +102,7 @@ public class Player implements GameDatabaseObject {
         this.titleSuffix = 2;
         this.level = 1;
         this.energy = 240;
-        this.boards = new IntOpenHashSet();
+        this.boards = new int[] {410301};
         this.headIcons = new IntOpenHashSet();
         this.titles = new IntOpenHashSet();
         this.createTime = Nebula.getCurrentTime();
@@ -120,9 +121,6 @@ public class Player implements GameDatabaseObject {
         // Add titles
         this.getTitles().add(this.getTitlePrefix());
         this.getTitles().add(this.getTitleSuffix());
-        
-        // Add board ids
-        this.getBoards().add(410301);
     }
     
     public Account getAccount() {
@@ -221,6 +219,28 @@ public class Player implements GameDatabaseObject {
         
         // Update in database
         Nebula.getGameDatabase().update(this, this.getUid(), "signature", this.getSignature());
+        
+        // Success
+        return true;
+    }
+
+    public boolean setBoard(RepeatedInt ids) {
+        // Length check
+        if (ids.length() <= 0 || ids.length() > GameConstants.MAX_SHOWCASE_IDS) {
+            return false;
+        }
+        
+        // Get max length
+        this.boards = new int[ids.length()];
+        
+        // Copy ids to our boards array
+        for (int i = 0; i < ids.length(); i++) {
+            int id = ids.get(i);
+            this.boards[i] = id;
+        }
+        
+        // Save to database
+        Nebula.getGameDatabase().update(this, this.getUid(), "boards", this.getBoards());
         
         // Success
         return true;
@@ -338,7 +358,9 @@ public class Player implements GameDatabaseObject {
     // Proto
 
     public PlayerInfo toProto() {
-        PlayerInfo proto = PlayerInfo.newInstance();
+        PlayerInfo proto = PlayerInfo.newInstance()
+                .setServerTs(Nebula.getCurrentTime())
+                .setAchievements(new byte[64]);
         
         var acc = proto.getMutableAcc()
             .setNickName(this.getName())
@@ -452,16 +474,15 @@ public class Player implements GameDatabaseObject {
             
             proto.addDictionaries(dictionaryProto);
         }
-
-        // Server timestamp
-        proto.setServerTs(Nebula.getCurrentTime());
         
-        // Extra
-        proto.setAchievements(new byte[64]);
-        
-        // Add instance
+        // Add instances
         this.getInstanceManager().toProto(proto);
         
+        // Handbook
+        proto.addHandbook(this.getCharacters().getCharacterHandbook().toProto());
+        proto.addHandbook(this.getCharacters().getDiscHandbook().toProto());
+        
+        // Extra
         proto.getMutableVampireSurvivorRecord()
             .getMutableSeason();
         

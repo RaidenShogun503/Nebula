@@ -12,5 +12,5 @@ public class GameConstants {
     public static final int EXP_ITEM_ID = 21;
     
     public static final int MAX_FORMATIONS = 5;
-    
+    public static final int MAX_SHOWCASE_IDS = 5;
 }
