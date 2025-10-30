@@ -37,6 +37,9 @@ public class GiveCommand implements CommandHandler {
             
             // Add
             mail.addAttachment(itemId, amount);
+            
+            // Log
+            args.sendMessage("Giving " + args.getTarget().getName() + " " + amount + " of " + itemId);
         }
         
         // Add mail
