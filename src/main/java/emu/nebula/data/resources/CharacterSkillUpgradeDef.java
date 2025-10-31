@@ -3,13 +3,12 @@ package emu.nebula.data.resources;
 import emu.nebula.GameConstants;
 import emu.nebula.data.BaseDef;
 import emu.nebula.data.ResourceType;
-import emu.nebula.data.ResourceType.LoadPriority;
 import emu.nebula.game.inventory.ItemParamMap;
 
 import lombok.Getter;
 
 @Getter
-@ResourceType(name = "CharacterSkillUpgrade.json", loadPriority = LoadPriority.LOW)
+@ResourceType(name = "CharacterSkillUpgrade.json")
 public class CharacterSkillUpgradeDef extends BaseDef {
     private int Group;
     private int AdvanceNum;

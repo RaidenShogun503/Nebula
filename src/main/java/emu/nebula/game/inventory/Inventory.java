@@ -296,6 +296,36 @@ public class Inventory extends PlayerManager {
         return hasItems;
     }
     
+    // Utility functions
+    
+    public PlayerChangeInfo produce(int id, int num) {
+        // Get production data
+        var data = GameData.getProductionDataTable().get(id);
+        if (data == null) {
+            return null;
+        }
+        
+        // Get materials
+        var materials = data.getMaterials().mulitply(num);
+        
+        // Verify that we have the materials
+        if (!this.verifyItems(materials)) {
+            return null;
+        }
+        
+        // Create change info
+        var changes = new PlayerChangeInfo();
+        
+        // Remove items
+        this.removeItems(materials, changes);
+        
+        // Add produced items
+        this.addItem(data.getProductionId(), data.getProductionPerBatch() * num, changes);
+        
+        // Success
+        return changes.setSuccess(true);
+    }
+    
     // Database
     
     public void loadFromDatabase() {
