@@ -16,5 +16,9 @@ public class StarTowerShopGoods {
         this.goodsId = goodsId;
         this.price = price;
     }
+
+    public void markAsSold() {
+        this.sold = true;
+    }
     
 }

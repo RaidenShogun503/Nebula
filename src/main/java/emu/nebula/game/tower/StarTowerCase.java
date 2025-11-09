@@ -104,12 +104,12 @@ public class StarTowerCase {
                 var hawker = proto.getMutableHawkerCase();
                 
                 for (var entry : getGoodsList().entrySet()) {
-                    var id = entry.getKey();
+                    var sid = entry.getKey();
                     var goods = entry.getValue();
                     
                     var info = HawkerGoods.newInstance()
                             .setIdx(goods.getGoodsId())
-                            .setSid(id)
+                            .setSid(sid)
                             .setType(goods.getType())
                             .setGoodsId(102) // ?
                             .setPrice(goods.getPrice())

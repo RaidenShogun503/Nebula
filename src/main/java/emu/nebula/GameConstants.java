@@ -14,6 +14,7 @@ public class GameConstants {
 
     public static final int GOLD_ITEM_ID = 1;
     public static final int ENERGY_BUY_ITEM_ID = 2;
+    public static final int STAR_TOWER_GOLD_ITEM_ID = 11;
     public static final int EXP_ITEM_ID = 21;
     
     public static final int MAX_ENERGY = 240;

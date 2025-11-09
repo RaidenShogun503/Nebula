@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.morphia.annotations.Entity;
+
+import emu.nebula.GameConstants;
 import emu.nebula.data.GameData;
 import emu.nebula.data.resources.PotentialDef;
 import emu.nebula.data.resources.StarTowerDef;
@@ -19,11 +21,12 @@ import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
 import emu.nebula.util.Snowflake;
 import emu.nebula.util.Utils;
 
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 
 import lombok.Getter;
 import lombok.SneakyThrows;
+
 import us.hebi.quickbuf.RepeatedMessage;
 
 @Getter
@@ -55,7 +58,7 @@ public class StarTowerGame {
     private int battleCount;
     private List<StarTowerChar> chars;
     private List<StarTowerDisc> discs;
-    private IntSet charIds;
+    private IntList charIds;
     
     // Case
     private int lastCaseId = 0;
@@ -102,7 +105,7 @@ public class StarTowerGame {
         this.charHp = -1;
         this.chars = new ArrayList<>();
         this.discs = new ArrayList<>();
-        this.charIds = new IntOpenHashSet();
+        this.charIds = new IntArrayList();
 
         this.cases = new ArrayList<>();
         
@@ -167,6 +170,10 @@ public class StarTowerGame {
         }
         
         return this.build;
+    }
+    
+    public int getRandomCharId() {
+        return Utils.randomElement(this.getCharIds());
     }
     
     public StarTowerStageDef getStageData(int stage, int floor) {
@@ -299,6 +306,17 @@ public class StarTowerGame {
                 // Add to new infos
                 this.getNewInfos().add(id, count);
             }
+            case Res -> {
+                // Add to res
+                this.getRes().add(id, count);
+                
+                // Add change
+                var info = TowerResInfo.newInstance()
+                        .setTid(id)
+                        .setQty(count);
+                
+                change.add(info);
+            }
             default -> {
                 // Ignored
             }
@@ -394,8 +412,13 @@ public class StarTowerGame {
 
     @SneakyThrows
     public StarTowerInteractResp onBattleEnd(StarTowerInteractReq req, StarTowerInteractResp rsp) {
+        // Parse battle end
         var proto = req.getBattleEndReq();
         
+        // Init change
+        var change = new PlayerChangeInfo();
+        
+        // Handle victory/defeat
         if (proto.hasVictory()) {
             // Add team level
             this.teamLevel++;
@@ -409,6 +432,16 @@ public class StarTowerGame {
                 .setLv(this.getTeamLevel())
                 .setBattleTime(this.getBattleTime());
             
+            // Add money
+            // TODO calculate properly
+            int money = Utils.randomRange(5, 15) * 10;
+            
+            if (this.getRoomType() == StarTowerRoomType.BossRoom.getValue()) {
+                money += 100;
+            }
+            
+            this.addItem(GameConstants.STAR_TOWER_GOLD_ITEM_ID, money, change);
+            
             // Create potential selector
             int charId = this.getChars().get(battleCount % this.getCharIds().size()).getId();
             var potentialCase = this.createPotentialSelector(charId);
@@ -419,12 +452,8 @@ public class StarTowerGame {
             // Add sub note skills
             var battleCase = this.getBattleCase();
             if (battleCase != null) {
-                var change = new PlayerChangeInfo();
                 int subNoteSkills = battleCase.getSubNoteSkillNum();
-                
                 this.addRandomSubNoteSkills(subNoteSkills, change);
-                
-                rsp.setChange(change.toProto());
             }
         } else {
             // Handle defeat
@@ -433,6 +462,9 @@ public class StarTowerGame {
         
         // Increment battle count
         this.battleCount++;
+        
+        // Set change
+        rsp.setChange(change.toProto());
         
         return rsp;
     }
@@ -527,6 +559,7 @@ public class StarTowerGame {
         } else if (this.roomType == StarTowerRoomType.ShopRoom.getValue()) {
             var hawkerCase = new StarTowerCase(CaseType.Hawker);
             
+            // TODO
             hawkerCase.addGoods(new StarTowerShopGoods(1, 1, 200));
             hawkerCase.addGoods(new StarTowerShopGoods(1, 1, 200));
             hawkerCase.addGoods(new StarTowerShopGoods(1, 1, 200));
@@ -550,6 +583,38 @@ public class StarTowerGame {
     }
     
     private StarTowerInteractResp onHawkerReq(StarTowerInteractReq req, StarTowerInteractResp rsp) {
+        // Set this proto
+        rsp.getMutableNilResp();
+        
+        // Get hawker case
+        var shop = this.getHawkerCase();
+        if (shop == null || shop.getGoodsList() == null) {
+            return rsp;
+        }
+        
+        // Get goods
+        var goods = shop.getGoodsList().get(req.getHawkerReq().getSid());
+        
+        // Make sure we have enough currency
+        if (this.getRes().get(GameConstants.STAR_TOWER_GOLD_ITEM_ID) < goods.getPrice() || goods.isSold()) {
+            return rsp;
+        }
+        
+        // Mark goods as sold
+        goods.markAsSold();
+        
+        // Add case
+        int charId = this.getRandomCharId();
+        var potentialCase = this.createPotentialSelector(charId);
+        this.addCase(rsp.getMutableCases(), potentialCase);
+        
+        // Remove items
+        var change = this.addItem(GameConstants.STAR_TOWER_GOLD_ITEM_ID, -goods.getPrice(), null);
+        
+        // Set change info
+        rsp.setChange(change.toProto());
+        
+        // Success
         return rsp;
     }
     
