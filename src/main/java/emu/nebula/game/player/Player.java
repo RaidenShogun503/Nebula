@@ -30,6 +30,7 @@ import emu.nebula.net.NetMsgPacket;
 import emu.nebula.proto.PlayerData.DictionaryEntry;
 import emu.nebula.proto.PlayerData.DictionaryTab;
 import emu.nebula.proto.PlayerData.PlayerInfo;
+import emu.nebula.proto.Public.CharShow;
 import emu.nebula.proto.Public.Energy;
 import emu.nebula.proto.Public.NewbieInfo;
 import emu.nebula.proto.Public.QuestType;
@@ -61,6 +62,7 @@ public class Player implements GameDatabaseObject {
     private int titleSuffix;
     private int level;
     private int exp;
+    private int[] showChars;
     private int[] boards;
     
     private int energy;
@@ -127,6 +129,7 @@ public class Player implements GameDatabaseObject {
         this.level = 1;
         this.energy = 240;
         this.energyLastUpdate = this.createTime;
+        this.showChars = new int[3];
         this.boards = new int[] {410301};
         
         // Setup inventory
@@ -260,6 +263,36 @@ public class Player implements GameDatabaseObject {
         
         // Update in database
         Nebula.getGameDatabase().update(this, this.getUid(), "signature", this.getSignature());
+        
+        // Success
+        return true;
+    }
+
+    public boolean setShowChars(RepeatedInt charIds) {
+        // Sanity check
+        if (charIds.length() > this.getShowChars().length) {
+            return false;
+        }
+        
+        // Verify that we have the correct characters
+        for (int id : charIds) {
+            if (id != 0 && !this.getCharacters().hasCharacter(id)) {
+                return false;
+            }
+        }
+        
+        // Clear
+        this.showChars[0] = 0;
+        this.showChars[1] = 0;
+        this.showChars[2] = 0;
+        
+        // Set
+        for (int i = 0; i < charIds.length(); i++) {
+            this.showChars[i] = charIds.get(i);
+        }
+        
+        // Update in database
+        Nebula.getGameDatabase().update(this, this.getUid(), "showChars", this.getShowChars());
         
         // Success
         return true;
@@ -499,6 +532,12 @@ public class Player implements GameDatabaseObject {
         this.progress = this.loadManagerFromDatabase(PlayerProgress.class);
         this.storyManager = this.loadManagerFromDatabase(StoryManager.class);
         this.questManager = this.loadManagerFromDatabase(QuestManager.class);
+        
+        // Database fixes
+        if (this.showChars == null) {
+            this.showChars = new int[3];
+            this.save();
+        }
     }
     
     public void onLogin() {
@@ -538,6 +577,21 @@ public class Player implements GameDatabaseObject {
             .setTitleSuffix(this.getTitleSuffix())
             .setCreateTime(this.getCreateTime());
         
+        // Set showcase character
+        for (int charId : this.getShowChars()) {
+            var info = CharShow.newInstance();
+            var character = this.getCharacters().getCharacterById(charId);
+            
+            if (character != null) {
+                info.setCharId(character.getCharId())
+                    .setLevel(character.getLevel())
+                    .setSkin(character.getSkin());
+            }
+            
+            acc.addChars(info);
+        }
+        
+        // Set world class
         proto.getMutableWorldClass()
             .setCur(this.getLevel())
             .setLastExp(this.getExp());
