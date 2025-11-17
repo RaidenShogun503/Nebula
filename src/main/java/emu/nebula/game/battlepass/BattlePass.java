@@ -101,14 +101,14 @@ public class BattlePass implements GameDatabaseObject {
         }
     }
     
-    public synchronized void resetDailyQuests() {
+    public synchronized void resetDailyQuests(boolean resetWeekly) {
         // Reset daily quests
         for (var data : GameData.getBattlePassQuestDataTable()) {
             // Get quest
             var quest = getQuests().computeIfAbsent(data.getId(), i -> new GameQuest(data));
             
             // Don't reset weekly quests
-            if (!data.isDaily()) {
+            if (!data.isDaily() && !resetWeekly) {
                 continue;
             }
             

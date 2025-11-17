@@ -534,17 +534,17 @@ public class Player implements GameDatabaseObject {
         }
         
         // Reset dailies
-        this.resetDailies();
+        this.resetDailies(false);
         
         // Update last epoch day
         this.lastEpochDay = Nebula.getGameContext().getEpochDays();
         Nebula.getGameDatabase().update(this, this.getUid(), "lastEpochDay", this.lastEpochDay);
     }
 
-    public void resetDailies() {
+    public void resetDailies(boolean resetWeekly) {
         // Reset daily quests
         this.getQuestManager().resetDailyQuests();
-        this.getBattlePassManager().getBattlePass().resetDailyQuests();
+        this.getBattlePassManager().getBattlePass().resetDailyQuests(resetWeekly);
     }
     
     // Trigger quests
