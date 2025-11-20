@@ -116,7 +116,7 @@ public class PlayerProgress extends PlayerManager implements GameDatabaseObject 
         }
         
         // Set
-        this.starTowerGrowth[index] |= (1 << nodeId);
+        this.starTowerGrowth[index] |= (1 << (nodeId - 1));
         
         // Success
         return true;

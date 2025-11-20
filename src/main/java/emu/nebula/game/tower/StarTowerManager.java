@@ -55,7 +55,7 @@ public class StarTowerManager extends PlayerManager {
         
         // Get nodes bits
         int nodes = growth[groupIndex];
-        int test = (1 << data.getNodeId());
+        int test = (1 << (data.getNodeId() - 1));
         
         // Check if bit is set
         return (nodes & test) != 0;
@@ -117,7 +117,7 @@ public class StarTowerManager extends PlayerManager {
             this.getProgress().setStarTowerGrowthNode(data.getGroup(), data.getNodeId());
             
             // Remove items
-            getPlayer().getInventory().removeItem(data.getItemId1(), data.getItemQty1());
+            getPlayer().getInventory().removeItem(data.getItemId1(), data.getItemQty1(), change);
             
             // Add to unlocked list
             unlocked.add(data.getId());
