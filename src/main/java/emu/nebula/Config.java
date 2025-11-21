@@ -102,6 +102,7 @@ public class Config {
         public boolean autoCreateAccount = true;
         public boolean skipIntro = false;
         public boolean unlockInstances = true;
+        public int sessionTimeout = 600; // How long to wait (in seconds) after the last http request from a session before removing it from the server
         public int dailyResetHour = 0;
         public int leaderboardRefreshTime = 60; // Leaderboard refresh time in seconds
         public WelcomeMail welcomeMail = new WelcomeMail();

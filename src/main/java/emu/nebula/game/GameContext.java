@@ -77,7 +77,9 @@ public class GameContext implements Runnable {
     // TODO add timeout to config
     public synchronized void cleanupInactiveSessions() {
         var it = this.getSessions().entrySet().iterator();
-        long timeout = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(600); // 10 minutes
+        
+        int time = Nebula.getConfig().getServerOptions().sessionTimeout;
+        long timeout = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(time);
         
         while (it.hasNext()) {
             var session = it.next().getValue();
