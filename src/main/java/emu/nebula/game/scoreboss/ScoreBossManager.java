@@ -19,8 +19,9 @@ public class ScoreBossManager extends PlayerManager  {
         super(player);
     }
     
+    // TODO calculate from bin data
     public int getControlId() {
-        return 1;
+        return 2;
     }
     
     public ScoreBossControlDef getControlData() {
