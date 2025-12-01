@@ -80,7 +80,7 @@ public class ScoreBossManager extends PlayerManager  {
         }
         
         // Settle
-        this.ranking.settle(this.getPlayer(), build, this.getLevelId(), stars, score);
+        this.ranking.settle(this.getPlayer(), build, getControlId(), getLevelId(), stars, score);
         
         // Save ranking
         this.ranking.save();
