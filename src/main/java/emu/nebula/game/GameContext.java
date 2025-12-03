@@ -8,12 +8,13 @@ import java.util.concurrent.TimeUnit;
 
 import emu.nebula.GameConstants;
 import emu.nebula.Nebula;
+import emu.nebula.game.activity.ActivityModule;
 import emu.nebula.game.gacha.GachaModule;
 import emu.nebula.game.player.PlayerModule;
 import emu.nebula.game.scoreboss.ScoreBossModule;
 import emu.nebula.game.tutorial.TutorialModule;
 import emu.nebula.net.GameSession;
-
+import emu.nebula.util.Utils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
@@ -27,6 +28,7 @@ public class GameContext implements Runnable {
     private final PlayerModule playerModule;
     private final GachaModule gachaModule;
     private final TutorialModule tutorialModule;
+    private final ActivityModule activityModule;
     private final ScoreBossModule scoreBossModule;
     
     // Game loop
@@ -34,6 +36,7 @@ public class GameContext implements Runnable {
     
     // Daily
     private long epochDays;
+    private int epochWeeks;
     
     public GameContext() {
         this.sessions = new Object2ObjectOpenHashMap<>();
@@ -42,6 +45,7 @@ public class GameContext implements Runnable {
         this.playerModule = new PlayerModule(this);
         this.gachaModule = new GachaModule(this);
         this.tutorialModule = new TutorialModule(this);
+        this.activityModule = new ActivityModule(this);
         this.scoreBossModule = new ScoreBossModule(this);
         
         // Run game loop
@@ -103,6 +107,7 @@ public class GameContext implements Runnable {
         
         long lastEpochDays = this.epochDays;
         this.epochDays = date.toEpochDay();
+        this.epochWeeks = Utils.getWeeks(this.epochDays);
         
         // Check if the day was changed
         if (this.epochDays > lastEpochDays) {

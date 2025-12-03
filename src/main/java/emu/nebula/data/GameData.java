@@ -32,7 +32,6 @@ public class GameData {
     @Getter private static DataTable<CharGemDef> CharGemDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemSlotControlDef> CharGemSlotControlDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemAttrGroupDef> CharGemAttrGroupDataTable = new DataTable<>();
-    @Getter private static DataTable<CharGemAttrTypeDef> CharGemAttrTypeDataTable = new DataTable<>();
     @Getter private static DataTable<CharGemAttrValueDef> CharGemAttrValueDataTable = new DataTable<>();
     
     // Character affinity
@@ -113,8 +112,12 @@ public class GameData {
     @Getter private static DataTable<StarTowerDef> StarTowerDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerStageDef> StarTowerStageDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerGrowthNodeDef> StarTowerGrowthNodeDataTable = new DataTable<>();
-    @Getter private static DataTable<PotentialDef> PotentialDataTable = new DataTable<>();
+    @Getter private static DataTable<StarTowerFloorExpDef> StarTowerFloorExpDataTable = new DataTable<>();
+    @Getter private static DataTable<StarTowerTeamExpDef> StarTowerTeamExpDataTable = new DataTable<>();
     @Getter private static DataTable<SubNoteSkillPromoteGroupDef> SubNoteSkillPromoteGroupDataTable = new DataTable<>();
+    
+    @Getter private static DataTable<PotentialDef> PotentialDataTable = new DataTable<>();
+    @Getter private static DataTable<CharPotentialDef> CharPotentialDataTable = new DataTable<>();
     
     @Getter private static DataTable<StarTowerBookFateCardBundleDef> StarTowerBookFateCardBundleDataTable = new DataTable<>();
     @Getter private static DataTable<StarTowerBookFateCardQuestDef> StarTowerBookFateCardQuestDataTable = new DataTable<>();
@@ -130,4 +133,10 @@ public class GameData {
     
     // Score boss
     @Getter private static DataTable<ScoreBossControlDef> ScoreBossControlDataTable = new DataTable<>();
+    
+    // Activity
+    @Getter private static DataTable<ActivityDef> ActivityDataTable = new DataTable<>();
+    
+    @Getter private static DataTable<TrialControlDef> TrialControlDataTable = new DataTable<>();
+    @Getter private static DataTable<TrialGroupDef> TrialGroupDataTable = new DataTable<>();
 }

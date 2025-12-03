@@ -10,6 +10,8 @@ import lombok.Getter;
 @ResourceType(name = "StarTower.json")
 public class StarTowerDef extends BaseDef {
     private int Id;
+    private int GroupId;
+    private int Difficulty;
     private int[] FloorNum;
     
     private transient int maxFloors;
@@ -19,8 +21,8 @@ public class StarTowerDef extends BaseDef {
         return Id;
     }
 
-    public int getMaxFloor(int stage) {
-        int index = stage - 1;
+    public int getMaxFloor(int stageNum) {
+        int index = stageNum - 1;
         
         if (index < 0 || index >= this.FloorNum.length) {
             return 0;

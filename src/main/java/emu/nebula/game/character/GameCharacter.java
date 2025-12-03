@@ -18,10 +18,11 @@ import emu.nebula.data.GameData;
 import emu.nebula.data.resources.CharacterDef;
 import emu.nebula.data.resources.TalentGroupDef;
 import emu.nebula.database.GameDatabaseObject;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.inventory.ItemParamMap;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
-import emu.nebula.game.quest.QuestCondType;
+import emu.nebula.game.quest.QuestCondition;
 import emu.nebula.net.NetMsgId;
 import emu.nebula.proto.Notify.Skin;
 import emu.nebula.proto.Notify.SkinChange;
@@ -117,6 +118,10 @@ public class GameCharacter implements GameDatabaseObject {
         }
     }
     
+    public boolean isMaster() {
+        return this.getData().getGrade() == 1;
+    }
+    
     public void setLevel(int level) {
         this.level = level;
     }
@@ -186,7 +191,7 @@ public class GameCharacter implements GameDatabaseObject {
         // Check if we leveled up
         if (this.level > oldLevel) {
             // Trigger quest
-            this.getPlayer().triggerQuest(QuestCondType.CharacterUpTotal, this.level - oldLevel);
+            this.getPlayer().trigger(QuestCondition.CharacterUpTotal, this.level - oldLevel);
         }
         
         // Save to database
@@ -271,6 +276,9 @@ public class GameCharacter implements GameDatabaseObject {
         
         // Save to database
         this.save();
+        
+        // Trigger quest/achievement
+        this.getPlayer().trigger(AchievementCondition.CharacterAdvanceTotal, 1);
         
         // Success
         return changes.setSuccess(true);
@@ -459,8 +467,8 @@ public class GameCharacter implements GameDatabaseObject {
         // Add affinity exp
         this.addAffinityExp(exp);
         
-        // Trigger quest
-        this.getPlayer().triggerQuest(QuestCondType.GiftGiveTotal, count);
+        // Trigger quest/achievement
+        this.getPlayer().trigger(QuestCondition.GiftGiveTotal, count);
         
         // Remove items
         var change = this.getPlayer().getInventory().removeItems(items);

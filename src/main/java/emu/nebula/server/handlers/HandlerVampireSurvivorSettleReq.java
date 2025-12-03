@@ -22,28 +22,32 @@ public class HandlerVampireSurvivorSettleReq extends NetHandler {
             session.encodeMsg(NetMsgId.vampire_survivor_settle_failed_ack);
         }
         
+        // Settle area
+        game.settleArea(req.getTime(), req.getKillCount().toArray());
+        
         // Calculate victory
         boolean victory = !req.getDefeat();
-        
-        // Settle area
-        var area = game.settleArea(req.getTime(), req.getKillCount().toArray());
+        int score = game.getTotalScore();
         
         // Settle game
-        session.getPlayer().getVampireSurvivorManager().settle(victory, area.getScore());
+        session.getPlayer().getVampireSurvivorManager().settle(victory, score);
+        
+        // Handle client events for achievements
+        session.getPlayer().getAchievementManager().handleClientEvents(req.getEvents());
         
         // Build response
         var rsp = VampireSurvivorSettleResp.newInstance();
         
         if (victory) {
             rsp.getMutableVictory()
-                .setFinalScore(game.getTotalScore());
+                .setFinalScore(score);
             
             for (var a : game.getAreas()) {
                 rsp.getMutableVictory().addInfos(a.toProto());
             }
         } else {
             rsp.getMutableDefeat()
-                .setFinalScore(game.getTotalScore());
+                .setFinalScore(score);
         }
         
         // Encode and send

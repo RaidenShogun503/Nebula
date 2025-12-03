@@ -6,6 +6,7 @@ import java.util.Map;
 import dev.morphia.annotations.Entity;
 import emu.nebula.Nebula;
 import emu.nebula.data.resources.ChatDef;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.net.NetMsgId;
 import emu.nebula.proto.Public.Contacts;
@@ -124,6 +125,9 @@ public class CharacterContact {
                     change
             );
         }
+        
+        // Trigger quest/achievement
+        this.getCharacter().getPlayer().trigger(AchievementCondition.ChatTotal, 1);
         
         // Success
         return change.setSuccess(true);

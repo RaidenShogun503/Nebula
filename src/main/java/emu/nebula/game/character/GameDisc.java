@@ -11,10 +11,11 @@ import emu.nebula.data.GameData;
 import emu.nebula.data.resources.DiscDef;
 import emu.nebula.data.resources.SubNoteSkillPromoteGroupDef;
 import emu.nebula.database.GameDatabaseObject;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.inventory.ItemParamMap;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
-import emu.nebula.game.quest.QuestCondType;
+import emu.nebula.game.quest.QuestCondition;
 import emu.nebula.proto.Public.Disc;
 import emu.nebula.proto.PublicStarTower.StarTowerDisc;
 
@@ -68,6 +69,10 @@ public class GameDisc implements GameDatabaseObject {
         if (this.data == null && data.getId() == this.getDiscId()) {
             this.data = data;
         }
+    }
+    
+    public boolean isMaster() {
+        return GameData.getItemDataTable().get(this.getDiscId()).getRarity() == 1;
     }
     
     public void setLevel(int level) {
@@ -145,7 +150,7 @@ public class GameDisc implements GameDatabaseObject {
         // Check if we leveled up
         if (this.level > oldLevel) {
             // Trigger quest
-            this.getPlayer().triggerQuest(QuestCondType.DiscStrengthenTotal, this.level - oldLevel);
+            this.getPlayer().trigger(QuestCondition.DiscStrengthenTotal, this.level - oldLevel);
         }
         
         // Save to database
@@ -214,6 +219,9 @@ public class GameDisc implements GameDatabaseObject {
         
         // Save to database
         this.save();
+        
+        // Trigger quest/achievement
+        this.getPlayer().trigger(AchievementCondition.DiscPromoteTotal, 1);
         
         // Success
         return change.setSuccess(true);

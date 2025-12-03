@@ -3,11 +3,12 @@ package emu.nebula.game.tower;
 import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
 import emu.nebula.data.resources.StarTowerGrowthNodeDef;
+import emu.nebula.game.achievement.AchievementCondition;
 import emu.nebula.game.player.Player;
 import emu.nebula.game.player.PlayerChangeInfo;
 import emu.nebula.game.player.PlayerManager;
 import emu.nebula.game.player.PlayerProgress;
-import emu.nebula.game.quest.QuestCondType;
+import emu.nebula.game.quest.QuestCondition;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -204,27 +205,53 @@ public class StarTowerManager extends PlayerManager {
         }
         
         // Create game
-        this.game = new StarTowerGame(this, data, formation, req);
+        try {
+            this.game = new StarTowerGame(this, data, formation, req);
+        } catch (Exception e) {
+            Nebula.getLogger().error("Could not create star tower game", e);
+            return null;
+        }
         
         // Trigger quest
-        this.getPlayer().triggerQuest(QuestCondType.TowerEnterFloor, 1);
+        this.getPlayer().trigger(QuestCondition.TowerEnterFloor, 1);
         
         // Success
         return change.setExtraData(this.game);
     }
 
-    public StarTowerGame endGame() {
+    public StarTowerGame endGame(boolean victory) {
         // Cache instance
         var game = this.game;
         
-        if (game != null) {
-            // Set last build
-            this.lastBuild = game.getBuild();
-            
-            // Clear instance
-            this.game = null;
+        if (game == null) {
+            return null;
         }
         
+        // Set last build
+        this.lastBuild = game.getBuild();
+        
+        // Handle victory events
+        if (victory) {
+            // Trigger achievements
+            this.getPlayer().trigger(AchievementCondition.TowerClearTotal, 1);
+            this.getPlayer().trigger(
+                AchievementCondition.TowerClearSpecificGroupIdAndDifficulty,
+                1,
+                game.getData().getGroupId(),
+                game.getData().getDifficulty()
+            );
+            this.getPlayer().trigger(
+                AchievementCondition.TowerClearSpecificLevelWithDifficultyAndTotal,
+                1,
+                game.getData().getId(),
+                game.getData().getDifficulty()
+            );
+        }
+        
+        // Clear game instance
+        this.game = null;
+        
+        // Return game
         return game;
     }
     

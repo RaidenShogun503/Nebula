@@ -12,6 +12,9 @@ import emu.nebula.Nebula;
 import emu.nebula.data.GameData;
 import emu.nebula.database.GameDatabaseObject;
 import emu.nebula.game.account.Account;
+import emu.nebula.game.achievement.AchievementCondition;
+import emu.nebula.game.achievement.AchievementManager;
+import emu.nebula.game.activity.ActivityManager;
 import emu.nebula.game.agent.AgentManager;
 import emu.nebula.game.battlepass.BattlePassManager;
 import emu.nebula.game.character.CharacterStorage;
@@ -23,7 +26,7 @@ import emu.nebula.game.infinitytower.InfinityTowerManager;
 import emu.nebula.game.instance.InstanceManager;
 import emu.nebula.game.inventory.Inventory;
 import emu.nebula.game.mail.Mailbox;
-import emu.nebula.game.quest.QuestCondType;
+import emu.nebula.game.quest.QuestCondition;
 import emu.nebula.game.quest.QuestManager;
 import emu.nebula.game.scoreboss.ScoreBossManager;
 import emu.nebula.game.story.StoryManager;
@@ -44,6 +47,7 @@ import emu.nebula.proto.Public.QuestType;
 import emu.nebula.proto.Public.Story;
 import emu.nebula.proto.Public.WorldClass;
 import emu.nebula.proto.Public.WorldClassRewardState;
+import emu.nebula.util.Utils;
 import emu.nebula.proto.Public.Title;
 
 import lombok.Getter;
@@ -103,7 +107,9 @@ public class Player implements GameDatabaseObject {
     private transient PlayerProgress progress;
     private transient StoryManager storyManager;
     private transient QuestManager questManager;
+    private transient AchievementManager achievementManager;
     private transient AgentManager agentManager;
+    private transient ActivityManager activityManager;
     
     // Extra
     private transient Stack<NetMsgPacket> nextPackages;
@@ -203,8 +209,14 @@ public class Player implements GameDatabaseObject {
     }
 
     public void setLevel(int level) {
+        // Set player world class (level)
         this.level = level;
+        
+        // Save to database
         Nebula.getGameDatabase().update(this, this.getUid(), "level", this.level);
+        
+        // Trigger achievement
+        this.trigger(AchievementCondition.WorldClassSpecific, this.getLevel());
     }
     
     public void setExp(int exp) {
@@ -480,16 +492,17 @@ public class Player implements GameDatabaseObject {
         
         // Save to database
         Nebula.getGameDatabase().update(
-                this, 
-                this.getUid(), 
-                "level", 
-                this.getLevel(), 
-                "exp", 
-                this.getExp()
+            this, 
+            this.getUid(), 
+            "level", 
+            this.getLevel(), 
+            "exp", 
+            this.getExp()
         );
         
         // Save level rewards if we changed it
         if (oldLevel != this.getLevel()) {
+            // Update level rewards
             this.getQuestManager().saveLevelRewards();
             
             this.addNextPackage(
@@ -497,6 +510,9 @@ public class Player implements GameDatabaseObject {
                 WorldClassRewardState.newInstance()
                     .setFlag(getQuestManager().getLevelRewards().toBigEndianByteArray())
             );
+            
+            // Trigger achievement
+            this.trigger(AchievementCondition.WorldClassSpecific, this.getLevel());
         }
         
         // Calculate changes
@@ -549,7 +565,7 @@ public class Player implements GameDatabaseObject {
         change = modifyEnergy(-amount, change);
         
         // Trigger quest
-        this.triggerQuest(QuestCondType.EnergyDeplete, amount);
+        this.trigger(QuestCondition.EnergyDeplete, amount);
         
         // Complete
         return change;
@@ -592,8 +608,16 @@ public class Player implements GameDatabaseObject {
             return;
         }
         
+        // Check if week has changed (Resets on monday)
+        // TODO add a config option
+        int curWeek = Utils.getWeeks(this.getLastEpochDay());
+        boolean hasWeekChanged = Nebula.getGameContext().getEpochWeeks() > curWeek;
+        
         // Reset dailies
-        this.resetDailies(false);
+        this.resetDailies(hasWeekChanged);
+        
+        // Trigger quest/achievement login
+        this.trigger(QuestCondition.LoginTotal, 1);
         
         // Update last epoch day
         this.lastEpochDay = Nebula.getGameContext().getEpochDays();
@@ -606,15 +630,28 @@ public class Player implements GameDatabaseObject {
         this.getBattlePassManager().getBattlePass().resetDailyQuests(resetWeekly);
     }
     
-    // Trigger quests
+    // Trigger quests + achievements
     
-    public void triggerQuest(QuestCondType condition, int progress) {
-        this.triggerQuest(condition, progress, 0);
+    public void trigger(int condition, int progress, int param1, int param2) {
+        this.getQuestManager().trigger(condition, progress, param1, param2);
+        this.getBattlePassManager().getBattlePass().trigger(condition, progress, param1, param2);
+        this.getAchievementManager().trigger(condition, progress, param1, param2);
     }
     
-    public void triggerQuest(QuestCondType condition, int progress, int param) {
-        this.getQuestManager().trigger(condition, progress, param);
-        this.getBattlePassManager().getBattlePass().trigger(condition, progress, param);
+    public void trigger(QuestCondition condition, int progress) {
+        this.trigger(condition.getValue(), progress, 0, 0);
+    }
+    
+    public void trigger(QuestCondition condition, int progress, int param1) {
+        this.trigger(condition.getValue(), progress, param1, 0);
+    }
+    
+    public void trigger(AchievementCondition condition, int progress) {
+        this.trigger(condition.getValue(), progress, 0, 0);
+    }
+    
+    public void trigger(AchievementCondition condition, int progress, int param1, int param2) {
+        this.trigger(condition.getValue(), progress, param1, param2);
     }
     
     // Login
@@ -658,13 +695,18 @@ public class Player implements GameDatabaseObject {
         this.gachaManager = this.loadManagerFromDatabase(GachaManager.class);
         this.storyManager = this.loadManagerFromDatabase(StoryManager.class);
         this.questManager = this.loadManagerFromDatabase(QuestManager.class);
+        this.achievementManager = this.loadManagerFromDatabase(AchievementManager.class);
         this.agentManager = this.loadManagerFromDatabase(AgentManager.class);
+        this.activityManager = this.loadManagerFromDatabase(ActivityManager.class);
         
         // Database fixes
         if (this.showChars == null) {
             this.showChars = new int[3];
             this.save();
         }
+        
+        // Init activities
+        this.getActivityManager().init();
         
         // Load complete
         this.loaded = true;
@@ -673,9 +715,6 @@ public class Player implements GameDatabaseObject {
     public void onLogin() {
         // See if we need to reset dailies
         this.checkResetDailies();
-        
-        // Trigger quest login
-        this.triggerQuest(QuestCondType.LoginTotal, 1);
         
         // Update last login time
         this.lastLogin = System.currentTimeMillis();
@@ -690,6 +729,18 @@ public class Player implements GameDatabaseObject {
     
     public void addNextPackage(int msgId, ProtoMessage<?> proto) {
         this.getNextPackages().add(new NetMsgPacket(msgId, proto));
+    }
+    
+    // Misc
+    
+    /**
+     * Called AFTER a response is sent to the client
+     */
+    public void afterResponse() {
+        // Check if we need save achievements
+        if (this.getAchievementManager().isQueueSave()) {
+            this.getAchievementManager().save();
+        }
     }
     
     // Proto
@@ -778,10 +829,12 @@ public class Player implements GameDatabaseObject {
         
         state.getMutableBattlePass()
             .setState(1);
+
+        state.getMutableAchievement()
+            .setNew(this.getAchievementManager().hasNewAchievements());
         
         state.getMutableFriendEnergy();
         state.getMutableMallPackage();
-        state.getMutableAchievement();
         state.getMutableTravelerDuelQuest()
             .setType(QuestType.TravelerDuel);
         state.getMutableTravelerDuelChallengeQuest()
@@ -860,6 +913,11 @@ public class Player implements GameDatabaseObject {
         
         for (var agent : getAgentManager().getAgents().values()) {
             agentProto.addInfos(agent.toProto());
+        }
+        
+        // Activities
+        for (var activity : getActivityManager().getActivities().values()) {
+            proto.addActivities(activity.toProto());
         }
         
         // Complete
