@@ -477,20 +477,40 @@ public class StarTowerGame {
         }
         
         // Random potentials list
-        var potentials = new IntArrayList();
+        var list = new IntArrayList();
         
         // Add potentials based on character role
         boolean isMainCharacter = this.getCharIds().getInt(0) == charId;
         
         if (isMainCharacter) {
-            potentials.addElements(0, data.getMasterSpecificPotentialIds());
-            potentials.addElements(0, data.getMasterNormalPotentialIds());
+            list.addElements(0, data.getMasterSpecificPotentialIds());
+            list.addElements(0, data.getMasterNormalPotentialIds());
         } else {
-            potentials.addElements(0, data.getAssistSpecificPotentialIds());
-            potentials.addElements(0, data.getAssistNormalPotentialIds());
+            list.addElements(0, data.getAssistSpecificPotentialIds());
+            list.addElements(0, data.getAssistNormalPotentialIds());
         }
         
-        potentials.addElements(0, data.getCommonPotentialIds());
+        list.addElements(0, data.getCommonPotentialIds());
+        
+        // Remove potentials we already have maxed out
+        var potentials = new IntArrayList();
+        
+        for (int id : list) {
+            // Get potential data
+            var potential = GameData.getPotentialDataTable().get(id);
+            if (potential == null) continue;
+            
+            // Filter out max level ones
+            int curLevel = this.getPotentials().get(id);
+            int maxLevel = potential.getMaxLevel(this);
+            
+            if (curLevel >= maxLevel) {
+                continue;
+            }
+            
+            // Add
+            potentials.add(id);
+        }
         
         // Get up to 3 random potentials
         IntList selector = new IntArrayList();
