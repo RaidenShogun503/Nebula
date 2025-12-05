@@ -2,7 +2,6 @@ package emu.nebula.game.tower;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import dev.morphia.annotations.Entity;
 
@@ -558,7 +557,7 @@ public class StarTowerGame {
         }
         
         // Get up to 3 random potentials
-        IntList selector = new IntArrayList();
+        List<StarTowerPotentialInfo> selector = new ArrayList<>();
         
         for (int i = 0; i < 3; i++) {
             // Sanity check
@@ -567,10 +566,27 @@ public class StarTowerGame {
             }
             
             // Get random potential id
-            int potentialId = Utils.randomElement(potentials, true);
+            int id = Utils.randomElement(potentials, true);
+            int level = 1;
+            
+            // Check for bonuses
+            if (this.getItemCount(id) > 0) {
+                // New potential
+                if (Utils.randomChance(this.getModifiers().getBonusPotentialChance())) {
+                    level += this.getModifiers().getBonusPotentialLevel();
+                }
+            } else {
+                // Existing potential
+                if (Utils.randomChance(this.getModifiers().getBonusStrengthenChance())) {
+                    level += 1;
+                }
+            }
+            
+            // Create potential
+            var potential = new StarTowerPotentialInfo(id, level);
             
             // Add to selector
-            selector.add(potentialId);
+            selector.add(potential);
         }
         
         // Sanity check
@@ -603,7 +619,7 @@ public class StarTowerGame {
         }
         
         // Get up to 3 random potentials
-        IntList selector = new IntArrayList();
+        List<StarTowerPotentialInfo> selector = new ArrayList<>();
         
         for (int i = 0; i < 3; i++) {
             // Sanity check
@@ -612,14 +628,19 @@ public class StarTowerGame {
             }
             
             // Get random potential id
-            int index = ThreadLocalRandom.current().nextInt(0, potentials.size());
-            int potentialId = potentials.getInt(index);
+            int id = Utils.randomElement(potentials, true);
+            int level = 1;
+            
+            // Check bonus potential chance
+            if (Utils.randomChance(this.getModifiers().getBonusStrengthenChance())) {
+                level += 1;
+            }
+            
+            // Create potential
+            var potential = new StarTowerPotentialInfo(id, level);
             
             // Add to selector
-            selector.add(potentialId);
-            
-            // Remove potential id from the selector
-            potentials.removeInt(index);
+            selector.add(potential);
         }
         
         // Sanity check

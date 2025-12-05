@@ -175,6 +175,10 @@ public class Utils {
     }
     
     public static boolean randomChance(double chance) {
+        if (chance <= 0) {
+            return false;
+        }
+        
         return ThreadLocalRandom.current().nextDouble() < chance;
     }
 
