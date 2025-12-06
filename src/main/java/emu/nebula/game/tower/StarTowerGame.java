@@ -179,11 +179,8 @@ public class StarTowerGame {
             this.subNoteDropList.add(id);
         }
         
-        // Add starting coin directly
-        int coin = this.getModifiers().getStartingCoin();
-        if (coin > 0) {
-            this.getRes().add(GameConstants.TOWER_COIN_ITEM_ID, coin);
-        }
+        // Add starting items
+        this.getModifiers().addStartingItems();
     }
     
     public Player getPlayer() {

@@ -1,5 +1,6 @@
 package emu.nebula.game.tower;
 
+import emu.nebula.GameConstants;
 import lombok.Getter;
 
 /**
@@ -131,17 +132,43 @@ public class StarTowerModifiers {
     }
     
     public int getStartingCoin() {
-        int gold = 0;
+        int coin = 0;
         
         if (this.hasGrowthNode(10103)) {
-            gold += 50;
+            coin += 50;
         } if (this.hasGrowthNode(10403)) {
-            gold += 100;
+            coin += 100;
         } if (this.hasGrowthNode(10702)) {
-            gold += 200;
+            coin += 200;
         }
         
-        return gold;
+        return coin;
+    }
+    
+    public int getStartingSubNotes() {
+        int subNotes = 0;
+        
+        if (this.hasGrowthNode(10102)) {
+            subNotes += 3;
+        }
+        
+        return subNotes;
+    }
+    
+    public void addStartingItems() {
+        // Add starting coin directly
+        int coin = this.getStartingCoin();
+        if (coin > 0) {
+            this.getGame().getRes().add(GameConstants.TOWER_COIN_ITEM_ID, coin);
+        }
+        
+        // Add starting subnotes
+        int subNotes = this.getStartingSubNotes();
+        
+        for (int i = 0; i < subNotes; i++) {
+            int id = this.getGame().getRandomSubNoteId();
+            this.getGame().getItems().add(id, 1);
+        }
     }
 
     public void setFreeStrengthen(boolean b) {
