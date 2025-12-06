@@ -100,6 +100,32 @@ public class BattlePass implements GameDatabaseObject {
         }
     }
     
+    /**
+     * Returns true if any rewards or quests are claimable
+     */
+    public synchronized boolean hasNew() {
+        // Check if any quests are complete but unclaimed
+        for (var quest : getQuests().values()) {
+            if (quest.isComplete() && !quest.isClaimed()) {
+                return true;
+            }
+        }
+        
+        // Check if we have any pending rewards
+        for (int i = 1; i <= this.getLevel(); i++) {
+            if (!this.getBasicReward().isSet(i)) {
+                return true;
+            }
+            
+            if (this.isPremium() && !this.getPremiumReward().isSet(i)) {
+                return true;
+            }
+        }
+        
+        // No claimable things
+        return false;
+    }
+    
     public synchronized void resetDailyQuests(boolean resetWeekly) {
         // Reset daily quests
         for (var data : GameData.getBattlePassQuestDataTable()) {
