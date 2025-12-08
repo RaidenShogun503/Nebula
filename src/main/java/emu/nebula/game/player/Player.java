@@ -36,6 +36,7 @@ import emu.nebula.game.vampire.VampireSurvivorManager;
 import emu.nebula.net.GameSession;
 import emu.nebula.net.NetMsgId;
 import emu.nebula.net.NetMsgPacket;
+import emu.nebula.proto.Notify.SigninRewardUpdate;
 import emu.nebula.proto.PlayerData.DictionaryEntry;
 import emu.nebula.proto.PlayerData.DictionaryTab;
 import emu.nebula.proto.PlayerData.PlayerInfo;
@@ -85,6 +86,8 @@ public class Player implements GameDatabaseObject {
     private int energy;
     private long energyLastUpdate;
    
+    private int signInIndex;
+    
     private long lastEpochDay;
     private long lastLogin;
     private long createTime;
@@ -613,6 +616,13 @@ public class Player implements GameDatabaseObject {
     public void checkResetDailies() {
         // Sanity check to make sure daily reset isnt being triggered wrong
         if (Nebula.getGameContext().getEpochDays() <= this.getLastEpochDay()) {
+            // Fix sign-in index
+            // TODO remove later
+            if (this.getSignInIndex() <= 0) {
+                this.getSignInRewards(false);
+            }
+            
+            // End
             return;
         }
         
@@ -621,8 +631,12 @@ public class Player implements GameDatabaseObject {
         int curWeek = Utils.getWeeks(this.getLastEpochDay());
         boolean hasWeekChanged = Nebula.getGameContext().getEpochWeeks() > curWeek;
         
+        // Check if month was changed
+        int curMonth = Utils.getMonths(this.getLastEpochDay());
+        boolean hasMonthChanged = Nebula.getGameContext().getEpochMonths() > curMonth;
+        
         // Reset dailies
-        this.resetDailies(hasWeekChanged);
+        this.resetDailies(hasWeekChanged, hasMonthChanged);
         
         // Trigger quest/achievement login
         this.trigger(QuestCondition.LoginTotal, 1);
@@ -633,12 +647,47 @@ public class Player implements GameDatabaseObject {
             this.getInventory().addItem(GameConstants.WEEKLY_ENTRY_ITEM_ID, 3 - entries);
         }
         
+        // Give sign-in rewards
+        this.getSignInRewards(hasMonthChanged);
+        
         // Update last epoch day
         this.lastEpochDay = Nebula.getGameContext().getEpochDays();
         Nebula.getGameDatabase().update(this, this.getUid(), "lastEpochDay", this.lastEpochDay);
     }
+    
+    private void getSignInRewards(boolean resetMonthly) {
+        // Check monthly reset
+        if (resetMonthly) {
+            this.signInIndex = 0;
+        }
+        
+        // Get next sign-in index
+        int nextSignIn = this.signInIndex + 1;
+        int group = Utils.getDaysOfMonth(this.getLastEpochDay());
+        
+        var data = GameData.getSignInDataTable().get((group << 16) + nextSignIn);
+        if (data == null) {
+            return;
+        }
+        
+        // Add rewards
+        var change = this.getInventory().addItem(data.getItemId(), data.getItemQty());
+        
+        // Add package
+        this.addNextPackage(
+            NetMsgId.signin_reward_change_notify, 
+            SigninRewardUpdate.newInstance()
+                .setIndex(nextSignIn)
+                .setSwitch(resetMonthly)
+                .setChange(change.toProto())
+        );
+        
+        // Update sign-in index
+        this.signInIndex = nextSignIn;
+        Nebula.getGameDatabase().update(this, this.getUid(), "signInIndex", this.signInIndex);
+    }
 
-    public void resetDailies(boolean resetWeekly) {
+    public void resetDailies(boolean resetWeekly, boolean resetMonthly) {
         // Reset daily quests
         this.getQuestManager().resetDailyQuests();
         this.getBattlePassManager().getBattlePass().resetDailyQuests(resetWeekly);
@@ -767,6 +816,7 @@ public class Player implements GameDatabaseObject {
     public PlayerInfo toProto() {
         PlayerInfo proto = PlayerInfo.newInstance()
                 .setServerTs(Nebula.getCurrentTime())
+                .setSigninIndex(this.getSignInIndex())
                 .setDailyShopRewardStatus(this.getQuestManager().hasDailyReward())
                 .setAchievements(new byte[64]);
         
