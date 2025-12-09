@@ -6,8 +6,26 @@ import emu.nebula.game.inventory.ItemParam;
 import emu.nebula.util.WeightedList;
 
 public class GameConstants {
-    private static final int DATA_VERSION = 60;
-    private static final String VERSION = "1.2.0";
+    public static final String VERSION = "1.3.0";
+    public static int DATA_VERSION = 0;
+    
+    // Set data versions for each region
+    static {
+        RegionConfig.getRegion("global")
+            .setDataVersion(66);
+        
+        RegionConfig.getRegion("kr")
+            .setDataVersion(73);
+        
+        RegionConfig.getRegion("jp")
+            .setDataVersion(69);
+        
+        RegionConfig.getRegion("tw")
+            .setDataVersion(67);
+
+        RegionConfig.getRegion("cn")
+            .setDataVersion(67);
+    }
     
     public static final ZoneId UTC_ZONE = ZoneId.of("UTC");
     
@@ -19,8 +37,8 @@ public class GameConstants {
     public static final int GEM_ITEM_ID = 2;
     public static final int PREM_GEM_ITEM_ID = 3;
     public static final int ENERGY_BUY_ITEM_ID = GEM_ITEM_ID;
-    public static final int STAR_TOWER_GOLD_ITEM_ID = 11;
     public static final int EXP_ITEM_ID = 21;
+    public static final int WEEKLY_ENTRY_ITEM_ID = 28;
     
     public static final int MAX_ENERGY = 240;
     public static final int ENERGY_REGEN_TIME = 360; // Seconds
@@ -36,6 +54,14 @@ public class GameConstants {
     
     public static final int MAX_FRIENDSHIPS = 50;
     public static final int MAX_PENDING_FRIENDSHIPS = 30;
+    
+    public static final int TOWER_COIN_ITEM_ID = 11;
+    public static final int[] TOWER_COMMON_SUB_NOTE_SKILLS = new int[] {
+        90011, 90012, 90013, 90014, 90015, 90016, 90017
+    };
+    public static final int[] TOWER_EVENTS_IDS = new int[] {
+        101, 102, 104, 105, 106, 107, 108, 114, 115, 116, 126, 127, 128
+    };
     
     public static int[][] VAMPIRE_SURVIVOR_BONUS_POWER = new int[][] {
         new int[] {100, 120},
@@ -57,7 +83,14 @@ public class GameConstants {
     // Helper functions
     
     public static String getGameVersion() {
-        return VERSION + "." + getDataVersion() + " (" + Nebula.getConfig().getRegion().toUpperCase() + ")";
+        // Load data version
+        var region = RegionConfig.getRegion(Nebula.getConfig().getRegion());
+        
+        // Set data version from region
+        GameConstants.DATA_VERSION = region.getDataVersion();
+        
+        // Init game version string
+        return VERSION + "." + getDataVersion() + " (" + region.getName().toUpperCase() + ")";
     }
     
     public static int getDataVersion() {

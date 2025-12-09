@@ -2,8 +2,8 @@ package emu.nebula.game.tower.room;
 
 import emu.nebula.data.resources.StarTowerStageDef;
 import emu.nebula.game.tower.StarTowerGame;
-import emu.nebula.game.tower.StarTowerShopGoods;
 import emu.nebula.game.tower.cases.StarTowerHawkerCase;
+import emu.nebula.game.tower.cases.StarTowerStrengthenMachineCase;
 import emu.nebula.game.tower.cases.StarTowerSyncHPCase;
 import lombok.Getter;
 
@@ -16,20 +16,18 @@ public class StarTowerHawkerRoom extends StarTowerBaseRoom {
 
     @Override
     public void onEnter() {
-        // Create hawker case
-        var hawker = new StarTowerHawkerCase();
+        // Create hawker case (shop)
+        this.addCase(new StarTowerHawkerCase());
         
-        // TODO
-        for (int i = 0; i < 8; i++) {
-            hawker.addGoods(new StarTowerShopGoods(1, 1, 200));
+        // Create strengthen machine
+        if (this.getModifiers().isEnableShopStrengthen()) {
+            this.addCase(new StarTowerStrengthenMachineCase());
         }
         
-        this.getGame().addCase(hawker);
+        // Create sync hp case
+        this.addCase(new StarTowerSyncHPCase());
         
         // Create door case
-        this.getGame().createExit();
-        
-        // Create sync hp case
-        this.getGame().addCase(new StarTowerSyncHPCase());
+        this.createExit();
     }
 }

@@ -1,18 +1,28 @@
 package emu.nebula.game.tower.room;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Objects;
 
+import emu.nebula.GameConstants;
+import emu.nebula.data.GameData;
+import emu.nebula.data.resources.StarTowerEventDef;
 import emu.nebula.data.resources.StarTowerStageDef;
 import emu.nebula.game.tower.StarTowerGame;
+import emu.nebula.game.tower.StarTowerModifiers;
 import emu.nebula.game.tower.cases.CaseType;
 import emu.nebula.game.tower.cases.StarTowerBaseCase;
+import emu.nebula.game.tower.cases.StarTowerNpcEventCase;
 import emu.nebula.game.tower.cases.StarTowerSyncHPCase;
 import emu.nebula.proto.PublicStarTower.InteractEnterReq;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomData;
 import emu.nebula.proto.StarTowerApply.StarTowerApplyReq;
+import emu.nebula.util.Utils;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+
 import lombok.Getter;
+
 import us.hebi.quickbuf.RepeatedMessage;
 
 @Getter
@@ -29,7 +39,7 @@ public class StarTowerBaseRoom {
     
     // Cases
     private int lastCaseId = 0;
-    private List<StarTowerBaseCase> cases;
+    private Int2ObjectMap<StarTowerBaseCase> cases;
     
     // Misc
     private boolean hasDoor;
@@ -37,15 +47,23 @@ public class StarTowerBaseRoom {
     public StarTowerBaseRoom(StarTowerGame game, StarTowerStageDef stage) {
         this.game = game;
         this.stage = stage;
-        this.cases = new ArrayList<>();
+        this.cases = new Int2ObjectLinkedOpenHashMap<>();
     }
     
-    public int getType() {
+    public RoomType getType() {
         return stage.getRoomType();
     }
     
     public boolean hasDoor() {
         return this.hasDoor;
+    }
+    
+    public StarTowerModifiers getModifiers() {
+        return this.getGame().getModifiers();
+    }
+    
+    public StarTowerBaseCase createExit() {
+        return this.getGame().createExit();
     }
     
     // Map info
@@ -64,6 +82,43 @@ public class StarTowerBaseRoom {
         this.paramId = req.getParamId();
     }
     
+    // NPC events
+
+    private StarTowerEventDef getRandomEvent() {
+        /*
+        var list = GameData.getStarTowerEventDataTable()
+                .values()
+                .stream()
+                .toList();
+        */
+        
+        var list = Arrays.stream(GameConstants.TOWER_EVENTS_IDS)
+                .mapToObj(GameData.getStarTowerEventDataTable()::get)
+                .filter(Objects::nonNull)
+                .toList();
+        
+        if (list.isEmpty()) {
+            return null;
+        }
+        
+        return Utils.randomElement(list);
+    }
+    
+    public StarTowerBaseCase createNpcEvent() {
+        // Get random event
+        var event = this.getRandomEvent();
+        
+        if (event == null) {
+            return null;
+        }
+        
+        // Get random npc
+        int npcId = Utils.randomElement(event.getRelatedNPCs());
+        
+        // Create case with event
+        return new StarTowerNpcEventCase(npcId, event);
+    }
+    
     // Cases
     
     public int getNextCaseId() {
@@ -71,10 +126,7 @@ public class StarTowerBaseRoom {
     }
     
     public StarTowerBaseCase getCase(int id) {
-        return this.getCases().stream()
-                .filter(c -> c.getId() == id)
-                .findFirst()
-                .orElse(null);
+        return this.getCases().get(id);
     }
     
     public StarTowerBaseCase addCase(StarTowerBaseCase towerCase) {
@@ -82,11 +134,16 @@ public class StarTowerBaseRoom {
     }
     
     public StarTowerBaseCase addCase(RepeatedMessage<StarTowerRoomCase> cases, StarTowerBaseCase towerCase) {
-        // Add to cases list
-        this.getCases().add(towerCase);
+        // Sanity check
+        if (towerCase == null) {
+            return null;
+        }
         
         // Set game for tower case
         towerCase.register(this);
+        
+        // Add to cases list
+        this.getCases().put(towerCase.getId(), towerCase);
         
         // Add case to proto
         if (cases != null) {
@@ -105,11 +162,11 @@ public class StarTowerBaseRoom {
     // Events
     
     public void onEnter() {
-        // Create door case
-        this.getGame().createExit();
-        
         // Create sync hp case
-        this.getGame().addCase(new StarTowerSyncHPCase());
+        this.addCase(new StarTowerSyncHPCase());
+        
+        // Create door case
+        this.createExit();
     }
     
     // Proto
@@ -118,7 +175,7 @@ public class StarTowerBaseRoom {
         var proto = emu.nebula.proto.PublicStarTower.StarTowerRoom.newInstance()
                 .setData(this.getDataProto());
         
-        for (var towerCase : this.getCases()) {
+        for (var towerCase : this.getCases().values()) {
             proto.addCases(towerCase.toProto());
         }
         
@@ -129,7 +186,7 @@ public class StarTowerBaseRoom {
         var proto = StarTowerRoomData.newInstance()
                 .setFloor(this.getGame().getFloorCount())
                 .setMapId(this.getMapId())
-                .setRoomType(this.getType())
+                .setRoomType(this.getType().getValue())
                 .setMapTableId(this.getMapTableId());
         
         if (this.getMapParam() != null && !this.getMapParam().isEmpty()) {

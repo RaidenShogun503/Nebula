@@ -2,28 +2,60 @@ package emu.nebula.game.tower.cases;
 
 import emu.nebula.GameConstants;
 import emu.nebula.data.GameData;
+import emu.nebula.game.inventory.ItemParamMap;
 import emu.nebula.game.player.PlayerChangeInfo;
-import emu.nebula.game.tower.room.StarTowerBattleRoom;
+import emu.nebula.game.tower.room.RoomType;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractResp;
+import emu.nebula.util.Utils;
 import lombok.Getter;
 
 @Getter
 public class StarTowerBattleCase extends StarTowerBaseCase {
-    private int subNoteSkillNum;
-    
-    public StarTowerBattleCase() {
-        this(0);
-    }
-    
-    public StarTowerBattleCase(int subNoteSkillNum) {
-        this.subNoteSkillNum = subNoteSkillNum;
-    }
+    private int subNoteDrops;
+    private int expReward;
 
     @Override
     public CaseType getType() {
         return CaseType.Battle;
+    }
+    
+    @Override
+    public void onRegister() {
+        // Get relevant floor exp data
+        // fishiatee: THERE'S NO LINQ IN JAVAAAAAAAAAAAAA
+        var floorExpData = GameData.getStarTowerFloorExpDataTable().stream()
+                            .filter(f -> f.getStarTowerId() == this.getGame().getId())
+                            .findFirst()
+                            .orElseThrow();
+        
+        // Determine appropriate reward
+        switch (this.getRoom().getType()) {
+            // Regular battle room
+            case RoomType.BattleRoom:
+                double chance = this.getModifiers().getBattleSubNoteDropChance() + .4;
+                this.subNoteDrops = Utils.randomChance(chance) ? 1 : 0;
+                this.expReward = floorExpData.getNormalExp();
+                break;
+            // Elite battle room
+            case RoomType.EliteBattleRoom:
+                this.subNoteDrops = 1;
+                this.expReward = floorExpData.getEliteExp();
+                break;
+            // Non-final boss room
+            case RoomType.BossRoom:
+                this.subNoteDrops = 2;
+                this.expReward = floorExpData.getBossExp();
+                break;
+            // Final room
+            case RoomType.FinalBossRoom:
+                this.subNoteDrops = 2;
+                this.expReward = floorExpData.getFinalBossExp();
+                break;
+            default:
+                break;
+        }
     }
 
     @Override
@@ -36,38 +68,8 @@ public class StarTowerBattleCase extends StarTowerBaseCase {
         
         // Handle victory/defeat
         if (proto.hasVictory()) {
-            // Handle leveling up
-
-            // Get relevant floor exp data
-            // fishiatee: THERE'S NO LINQ IN JAVAAAAAAAAAAAAA
-            var floorExpData = GameData.getStarTowerFloorExpDataTable().stream()
-                                .filter(f -> f.getStarTowerId() == this.getGame().getId())
-                                .findFirst()
-                                .orElseThrow();
-            int expReward = 0;
-
-            // Determine appropriate exp reward
-            switch (this.getRoom().getType()) {
-                // Regular battle room
-                case 0:
-                    expReward = floorExpData.getNormalExp();
-                    break;
-                // Elite battle room
-                case 1:
-                    expReward = floorExpData.getEliteExp();
-                    break;
-                // Non-final boss room
-                case 2:
-                    expReward = floorExpData.getBossExp();
-                    break;
-                // Final room
-                case 3:
-                    expReward = floorExpData.getFinalBossExp();
-                    break;
-            }
-
             // Level up
-            this.getGame().addExp(expReward);
+            this.getGame().addExp(this.expReward);
             this.getGame().addPotentialSelectors(this.getGame().levelUp());
             
             // Add clear time
@@ -79,27 +81,26 @@ public class StarTowerBattleCase extends StarTowerBaseCase {
                 .setLv(this.getGame().getTeamLevel())
                 .setBattleTime(this.getGame().getBattleTime());
             
-            // Add money
-            int money = this.getRoom().getStage().getInteriorCurrencyQuantity();
+            // Calculate amount of coins earned
+            int coin = this.getRoom().getStage().getInteriorCurrencyQuantity();
             
-            this.getGame().addItem(GameConstants.STAR_TOWER_GOLD_ITEM_ID, money, change);
+            // Tower research talent
+            if (Utils.randomChance(this.getModifiers().getBonusCoinChance())) {
+                coin += this.getModifiers().getBonusCoinCount();
+            }
+            
+            // Add coins
+            this.getGame().addItem(GameConstants.TOWER_COIN_ITEM_ID, coin, change);
             
             // Handle pending potential selectors
-            var potentialCase = this.getGame().handlePendingPotentialSelectors();
-            if (potentialCase != null) {
-                // Create potential selector
-                this.getGame().addCase(rsp.getMutableCases(), potentialCase);
-            } else if (!this.getRoom().hasDoor()) {
-                // Add door case here if door hasn't opened yet
-                this.getGame().createExit(rsp.getMutableCases());
-                // Create recovery npc
-                if (this.getRoom() instanceof StarTowerBattleRoom) {
-                    this.getRoom().addCase(rsp.getMutableCases(), new StarTowerNpcRecoveryHPCase());
-                }
+            var nextCases = this.getGame().handlePendingPotentialSelectors();
+            
+            for (var towerCase : nextCases) {
+                this.getGame().addCase(rsp.getMutableCases(), towerCase);
             }
             
             // Add sub note skills
-            this.getGame().addRandomSubNoteSkills(this.getGame().getPendingSubNotes(), change);
+            this.calculateSubNoteRewards(change);
 
             // Handle client events for achievements
             this.getGame().getPlayer().getAchievementManager().handleClientEvents(proto.getVictory().getEvents());
@@ -116,11 +117,47 @@ public class StarTowerBattleCase extends StarTowerBaseCase {
         return rsp;
     }
     
+    // Sub notes
+    
+    private void calculateSubNoteRewards(PlayerChangeInfo change) {
+        // Init rewards
+        var rewards = new ItemParamMap();
+        
+        // Sub note drops
+        int subNotes = this.getSubNoteDrops();
+        
+        // Add extra sub notes after a boss fight
+        if (getRoom().getType() == RoomType.BossRoom && getModifiers().getBonusBossSubNotes() > 0) {
+            // 50% chance to add extra sub notes
+            if (Utils.randomChance(0.5)) {
+                subNotes += getModifiers().getBonusBossSubNotes();
+            }
+        }
+        
+        // Bonus sub note chance (Note of Surprise)
+        if (Utils.randomChance(this.getModifiers().getBonusSubNoteChance())) {
+            subNotes += this.getModifiers().getBonusSubNotes();
+        }
+        
+        // Regular sub note drops
+        for (int i = 0; i < subNotes; i++) {
+            int id = this.getGame().getRandomSubNoteId();
+            int count = 3;
+            
+            rewards.add(id, count);
+        }
+        
+        // Add sub notes to inventory
+        for (var item : rewards) {
+            this.getGame().addItem(item.getIntKey(), item.getIntValue(), change);
+        }
+    }
+    
     // Proto
     
     @Override
     public void encodeProto(StarTowerRoomCase proto) {
         proto.getMutableBattleCase()
-            .setSubNoteSkillNum(this.getSubNoteSkillNum());
+            .setSubNoteSkillNum(this.getSubNoteDrops());
     }
 }

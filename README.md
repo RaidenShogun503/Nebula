@@ -1,6 +1,6 @@
 # Nebula
 
-A work in progress game server emulator for a certain anime game.
+A work in progress game server emulator for a certain anime game. Most features are implemented.
 
 For any extra support, questions, or discussions, check out our [Discord](https://discord.gg/cskCWBqdJk).
 
@@ -19,15 +19,21 @@ For any extra support, questions, or discussions, check out our [Discord](https:
 - Commissions
 - Heartlink
 - Achievements
-- Monoliths (completeable but many other features missing)
+- Monoliths (research quests not implemented)
 - Bounty Trials
 - Menance Arena
-- Proving grounds
+- Proving Grounds
 - Catacylsm Survivor (talents not fully working)
 - Boss Blitz
+- Events (Only tower defense and trials)
 
-### Not implemented
-- Events
+### Supported regions
+
+Nebula supports the global PC client by default. If you want to switch regions, you need to change the `region` field in the Nebula config.
+
+Current supported regions (PC): `GLOBAL`, `KR`, `JP`, `TW`, `CN`
+
+You may need to change the data version when switching regions. The `customDataVersion` field should match the the data version of your client, which is usually the last number of your client's version string (top left of your login screen). Example: 1.0.0.42 = data version 42.
 
 # Running the server and client
 
@@ -49,17 +55,25 @@ For any extra support, questions, or discussions, check out our [Discord](https:
 3. Copy and paste the following code into the Fiddlerscript tab of Fiddler Classic. Remember to save the fiddler script after you copy and paste it:
 
 ```
-import System;
-import System.Windows.Forms;
 import Fiddler;
-import System.Text.RegularExpressions;
 
 class Handlers
 {
+    static var list = [
+        ".yostarplat.com",
+        ".stellasora.global",
+        ".stellasora.kr",
+        ".stellasora.jp",
+        ".stargazer-games.com",
+        ".yostar.cn"
+    ];
+
     static function OnBeforeRequest(oS: Session) {
-        if (oS.host.EndsWith(".yostarplat.com") || oS.host.EndsWith(".stellasora.global")) {
-            oS.oRequest.headers.UriScheme = "http";
-            oS.host = "localhost"; // This can also be replaced with another IP address.
+        for (var i = 0; i < list.length; i++) {
+            if (oS.host.EndsWith(list[i])) {
+                oS.oRequest.headers.UriScheme = "http";
+                oS.host = "localhost"; // This can also be replaced with another IP address
+            }
         }
     }
 };
@@ -68,25 +82,20 @@ class Handlers
 4. If `autoCreateAccount` is set to true in the config, then you can skip this step. Otherwise, type `/account create [account email]` in the server console to create an account.
 5. Login with your account email, the code field is ignored by the server and can be set to anything.
 
-If you are not on the global client, `.stellasora.global` in the fiddlerscript may need to be changed to match the endpoint your client connects to.
-
-### Supported regions
-
-Nebula supports the global client by default. If you want to switch regions, you need to change the `customDataVersion` and `region` fields in the Nebula config. The `customDataVersion` field should match the the data version of your client, which is usually the last number of your client's version string (top left of your login screen). Example: 1.0.0.42 = data version 42.
-
-Current supported regions: `global`, `kr`
-
 ### Server commands
 Server commands need to be run in the server console OR in the signature edit menu of your profile.
 
 ```
 !account {create | delete} [email] (reserved player uid) = Creates or deletes an account.
+!battlepass [free | premium] lv(level) = Modifies the targeted player's battle pass
 !char [all | {characterId}] lv(level) a(ascension) s(skill level) t(talent level) f(affinity level) = Changes the properties of the targeted characters.
 !clean [all | {id} ...] [items|resources] = Removes items/resources from the targeted player.
 !disc [all | {discId}] lv(level) a(ascension) c(crescendo level) = Changes the properties of the targeted discs.
 !give [item id] x[amount] = Gives the targeted player an item through the mail.
 !giveall [characters | discs | materials] = Gives the targeted player items.
+!help = Displays a list of available commands. (Very spammy in-game)
 !level (level) = Sets the player level
-!mail = Sends the targeted player a system mail.
+!mail "subject" "body" [itemId xQty | itemId:qty ...] = Sends the targeted player a system mail.
 !reload = Reloads the server config.
+!remote = Creates a player token for remote api usage
 ```

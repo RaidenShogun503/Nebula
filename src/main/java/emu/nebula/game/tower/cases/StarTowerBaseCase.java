@@ -1,6 +1,7 @@
 package emu.nebula.game.tower.cases;
 
 import emu.nebula.game.tower.StarTowerGame;
+import emu.nebula.game.tower.StarTowerModifiers;
 import emu.nebula.game.tower.room.StarTowerBaseRoom;
 import emu.nebula.proto.PublicStarTower.StarTowerRoomCase;
 import emu.nebula.proto.StarTowerInteract.StarTowerInteractReq;
@@ -22,13 +23,22 @@ public abstract class StarTowerBaseCase {
     public StarTowerBaseRoom getRoom() {
         return this.getGame().getRoom();
     }
+    
+    public StarTowerModifiers getModifiers() {
+        return this.getGame().getModifiers();
+    }
+    
+    public abstract CaseType getType();
 
     public void register(StarTowerBaseRoom room) {
         this.game = room.getGame();
         this.id = room.getNextCaseId();
+        this.onRegister();
     }
     
-    public abstract CaseType getType();
+    public void onRegister() {
+        
+    }
     
     public abstract StarTowerInteractResp interact(StarTowerInteractReq req, StarTowerInteractResp rsp);
     

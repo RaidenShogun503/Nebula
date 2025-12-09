@@ -4,6 +4,9 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -173,17 +176,47 @@ public class Utils {
     public static int randomRange(int min, int max) {
         return ThreadLocalRandom.current().nextInt(min, max + 1);
     }
+    
+    public static boolean randomChance(double chance) {
+        if (chance <= 0D) {
+            return false;
+        }
+        
+        return ThreadLocalRandom.current().nextDouble() < chance;
+    }
 
     public static int randomElement(int[] array) {
         return array[ThreadLocalRandom.current().nextInt(0, array.length)];
     }
 
     public static <T> T randomElement(List<T> list) {
-        return list.get(ThreadLocalRandom.current().nextInt(0, list.size()));
+        return randomElement(list, false);
+    }
+    
+    public static <T> T randomElement(List<T> list, boolean remove) {
+        int index = ThreadLocalRandom.current().nextInt(0, list.size());
+        var object = list.get(index);
+        
+        if (remove) {
+            list.remove(index);
+        }
+        
+        return object;
     }
     
     public static int randomElement(IntList list) {
         return list.getInt(ThreadLocalRandom.current().nextInt(0, list.size()));
+    }
+    
+    public static int randomElement(IntList list, boolean remove) {
+        int index = ThreadLocalRandom.current().nextInt(0, list.size());
+        int object = list.getInt(index);
+        
+        if (remove) {
+            list.removeInt(index);
+        }
+        
+        return object;
     }
 
     /**
@@ -264,11 +297,28 @@ public class Utils {
     }
     
     /**
-     * Get amount weeks since this epoch day. Each week starts on monday.
+     * Get amount of weeks since this epoch day. Each week starts on monday.
      * @param epochDays
      * @return
      */
     public static int getWeeks(long epochDays) {
         return (int) Math.floor((epochDays + 3) / 7D);
+    }
+    
+    /**
+     * Get amount of months since this epoch day.
+     * @param epochDays
+     * @return
+     */
+    public static int getMonths(long epochDays) {
+        var begin = LocalDate.ofEpochDay(0);
+        var date = LocalDate.ofEpochDay(epochDays);
+        return (int) ChronoUnit.MONTHS.between(begin, date);
+    }
+    
+    public static int getDaysOfMonth(long epochDays) {
+        var date = LocalDate.ofEpochDay(epochDays);
+        var month = YearMonth.of(date.getYear(), date.getMonthValue());
+        return month.lengthOfMonth();
     }
 }
