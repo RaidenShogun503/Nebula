@@ -24,6 +24,7 @@ public class GameSession {
     private String token;
     private Account account;
     private Player player;
+    private String ipAddress;
 
     // Crypto
     private int encryptMethod; // 0 = gcm, 1 = chacha20
@@ -121,8 +122,7 @@ public class GameSession {
             return false;
         }
 
-        // Note: We should cache players in case multiple sessions try to login to the
-        // same player at the time
+        // Note: We should cache players in case multiple sessions try to login to the same player at the time
         // Get player by account
         var player = Nebula.getGameContext().getPlayerModule().loadPlayer(account);
 
@@ -141,6 +141,10 @@ public class GameSession {
 
     public void updateLastActiveTime() {
         this.lastActiveTime = System.currentTimeMillis();
+    }
+
+    public void updateIpAddress(String ip) {
+        this.ipAddress = ip;
     }
 
     // Packet encoding helper functions

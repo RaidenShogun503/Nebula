@@ -45,7 +45,6 @@ import emu.nebula.proto.Public.Friend;
 import emu.nebula.proto.Public.HonorInfo;
 import emu.nebula.proto.Public.NewbieInfo;
 import emu.nebula.proto.Public.QuestType;
-import emu.nebula.proto.Public.Story;
 import emu.nebula.proto.Public.WorldClass;
 import emu.nebula.proto.Public.WorldClassRewardState;
 import emu.nebula.util.Utils;
@@ -633,13 +632,7 @@ public class Player implements GameDatabaseObject {
         
         // Trigger quest/achievement login
         this.trigger(QuestCondition.LoginTotal, 1);
-        
-        // Add weekly boss entry item
-        int entries = this.getInventory().getResourceCount(GameConstants.WEEKLY_ENTRY_ITEM_ID);
-        if (entries < 3) {
-            this.getInventory().addItem(GameConstants.WEEKLY_ENTRY_ITEM_ID, 3 - entries);
-        }
-        
+
         // Give sign-in rewards
         this.getSignInRewards(hasMonthChanged);
         
@@ -685,8 +678,21 @@ public class Player implements GameDatabaseObject {
         this.getQuestManager().resetDailyQuests();
         this.getBattlePassManager().getBattlePass().resetDailyQuests(resetWeekly);
         
-        // Reset monthly shop purchases
+        // Check to reset weeklies
+        if (resetWeekly) {
+            // Add weekly boss entry item
+            int entries = this.getInventory().getResourceCount(GameConstants.WEEKLY_ENTRY_ITEM_ID);
+            if (entries < 3) {
+                this.getInventory().addItem(GameConstants.WEEKLY_ENTRY_ITEM_ID, 3 - entries);
+            }
+            
+            // Reset weekly tower tickets
+            this.getProgress().clearWeeklyTowerTicketLog();
+        }
+        
+        // Check if we need to reset monthly
         if (resetMonthly) {
+            // Reset monthly shop purchases
             this.getInventory().resetShopPurchases();
         }
     }
@@ -815,6 +821,7 @@ public class Player implements GameDatabaseObject {
         PlayerInfo proto = PlayerInfo.newInstance()
                 .setServerTs(Nebula.getCurrentTime())
                 .setSigninIndex(this.getSignInIndex())
+                .setTowerTicket(this.getProgress().getTowerTickets())
                 .setDailyShopRewardStatus(this.getQuestManager().hasDailyReward())
                 .setAchievements(new byte[64]);
         
@@ -923,14 +930,7 @@ public class Player implements GameDatabaseObject {
         acc.addNewbies(NewbieInfo.newInstance().setGroupId(GameConstants.INTRO_GUIDE_ID).setStepId(-1));
         
         // Story
-        var story = proto.getMutableStory();
-        
-        for (int storyId : this.getStoryManager().getCompletedStories()) {
-            var storyProto = Story.newInstance()
-                    .setIdx(storyId);
-            
-            story.addStories(storyProto);
-        }
+        this.getStoryManager().encodePlayerInfo(proto);
         
         // Add titles
         for (int titleId : this.getInventory().getTitles()) {
@@ -946,7 +946,7 @@ public class Player implements GameDatabaseObject {
         }
         
         // Quests
-        this.getQuestManager().encodeProto(proto);
+        this.getQuestManager().encodePlayerInfo(proto);
         
         // Add dictionary tabs
         for (var dictionaryData : GameData.getDictionaryTabDataTable()) {
@@ -965,7 +965,7 @@ public class Player implements GameDatabaseObject {
         }
         
         // Add progress
-        this.getProgress().encodeProto(proto);
+        this.getProgress().encodePlayerInfo(proto);
         
         // Handbook
         proto.addHandbook(this.getCharacters().getCharacterHandbook());

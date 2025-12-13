@@ -75,6 +75,7 @@ public class StarTowerGame {
     private int[] discIds;
     
     private int pendingPotentialCases = 0;
+    private int pendingRarePotentialCases = 0;
     private boolean completed;
     
     // Bag
@@ -89,9 +90,10 @@ public class StarTowerGame {
     // Modifiers
     private StarTowerModifiers modifiers;
     
-    // Cached build
+    // Cached info
     private transient StarTowerBuild build;
     private transient ItemParamMap newInfos;
+    private transient ItemParamMap rarePotentialCount;
     
     @Deprecated // Morphia only
     public StarTowerGame() {
@@ -173,6 +175,9 @@ public class StarTowerGame {
         this.charIds = charList.toIntArray();
         this.discIds = discList.toIntArray();
         
+        // Temp data to cache for rare potential count
+        this.rarePotentialCount = new ItemParamMap();
+        
         // Finish setting up droppable sub note skills
         for (int id : GameConstants.TOWER_COMMON_SUB_NOTE_SKILLS) {
             this.subNoteDropList.add(id);
@@ -204,6 +209,10 @@ public class StarTowerGame {
     
     public int getDifficulty() {
         return this.getData().getDifficulty();
+    }
+    
+    public int getRarePotentialCount(int charId) {
+        return this.getRarePotentialCount().get(charId);
     }
     
     /**
@@ -424,6 +433,11 @@ public class StarTowerGame {
                 // Add potential
                 this.getPotentials().put(id, nextLevel);
                 
+                // Add to rare potential count
+                if (potentialData.isRare()) {
+                    this.getRarePotentialCount().add(potentialData.getCharId(), 1);
+                }
+                
                 // Add to change info
                 var info = PotentialInfo.newInstance()
                         .setTid(id)
@@ -491,7 +505,13 @@ public class StarTowerGame {
      * Adds random potential selector cases for the client
      */
     public void addPotentialSelectors(int amount) {
+        if (amount <= 0) return;
         this.pendingPotentialCases += amount;
+    }
+    
+    public void addRarePotentialSelectors(int amount) {
+        if (amount <= 0) return;
+        this.pendingRarePotentialCases += amount;
     }
     
     /**
@@ -499,6 +519,20 @@ public class StarTowerGame {
      * If there are none, then create the door case so the player can exit
      */
     public List<StarTowerBaseCase> handlePendingPotentialSelectors() {
+        // Create rare potential selectors if any characters can recieve a rare potential
+        if (this.pendingRarePotentialCases > 0) {
+            this.pendingRarePotentialCases--;
+            
+            // Create a rare selector, if no selector can be created, then create a regular one instead
+            var selector = this.createRarePotentialSelector();
+            
+            if (selector != null) {
+                return List.of(selector);
+            } else {
+                this.pendingPotentialCases += 1;
+            }
+        }
+        
         // Create potential selectors if any are avaliable
         if (this.pendingPotentialCases > 0) {
             this.pendingPotentialCases--;
@@ -553,10 +587,15 @@ public class StarTowerGame {
     /**
      * Creates a potential selector for the specified character
      */
-    public StarTowerPotentialCase createPotentialSelector(int charId, boolean rareOnly) {
+    public StarTowerPotentialCase createPotentialSelector(int charId, boolean rare) {
         // Check character id
         if (charId <= 0) {
             charId = this.getRandomCharId();
+        }
+        
+        // Make sure character can't have more than 2 rare potentials
+        if (rare && this.getRarePotentialCount(charId) >= 2) {
+            return null;
         }
         
         // Get character potentials
@@ -572,20 +611,20 @@ public class StarTowerGame {
         boolean isMainCharacter = this.getCharIds()[0] == charId;
         
         if (isMainCharacter) {
-            list.addElements(0, data.getMasterSpecificPotentialIds());
-            
-            if (!rareOnly) {
+            if (rare) {
+                list.addElements(0, data.getMasterSpecificPotentialIds());
+            } else {
                 list.addElements(0, data.getMasterNormalPotentialIds());
             }
         } else {
-            list.addElements(0, data.getAssistSpecificPotentialIds());
-            
-            if (!rareOnly) {
+            if (rare) {
+                list.addElements(0, data.getAssistSpecificPotentialIds());
+            } else {
                 list.addElements(0, data.getAssistNormalPotentialIds());
             }
         }
         
-        if (!rareOnly) {
+        if (!rare) {
             list.addElements(0, data.getCommonPotentialIds()); 
         }
         
@@ -648,11 +687,42 @@ public class StarTowerGame {
         }
         
         // Creator potential selector case
-        if (rareOnly) {
+        if (rare) {
             return new StarTowerSelectSpecialPotentialCase(this, charId, selector);
         } else {
             return new StarTowerPotentialCase(this, charId, selector);
         }
+    }
+    
+    public int getRandomCharIdForRarePotential() {
+        // Create list of avaliable characters
+        IntList list = new IntArrayList();
+        
+        for (int id : this.getCharIds()) {
+            int rareCount = this.getRarePotentialCount().get(id);
+            if (rareCount < 2) {
+                list.add(id);
+            }
+        }
+        
+        // Sanity check
+        if (list.isEmpty()) {
+            return 0;
+        }
+        
+        return Utils.randomElement(list);
+    }
+    
+    /**
+     * Creates a random rare potential selector
+     */
+    public StarTowerPotentialCase createRarePotentialSelector() {
+        // Get random character from list
+        int charId = this.getRandomCharIdForRarePotential();
+        if (charId == 0) return null;
+        
+        // Create rare selector
+        return this.createPotentialSelector(charId, true);
     }
     
     public StarTowerPotentialCase createStrengthenSelector() {
@@ -786,12 +856,12 @@ public class StarTowerGame {
         return rsp;
     }
     
-    public StarTowerInteractResp settle(StarTowerInteractResp rsp, boolean isWin) {
+    public StarTowerInteractResp settle(StarTowerInteractResp rsp, boolean victory) {
         // Set completed flag
         this.completed = true;
         
         // End game
-        this.getManager().settleGame(isWin);
+        this.getManager().settleGame(victory);
         
         // Settle info
         var settle = rsp.getMutableSettle()
@@ -800,6 +870,30 @@ public class StarTowerGame {
         
         // Set empty change info
         settle.getMutableChange();
+        
+        // Calculate rewards
+        if (victory) {
+            // Init rewards
+            var rewards = new ItemParamMap();
+            
+            // Add journey tickets
+            int tickets = this.getModifiers().calculateTickets();
+            rewards.add(12, tickets);
+            
+            // (Custom) Add research materials since tower quests are not implemented yet
+            int research = 50 + (Utils.randomRange(this.getDifficulty() - 1, this.getDifficulty() * 2) * 10);
+            rewards.add(51, research);
+            
+            // Add to inventory
+            var change = this.getPlayer().getInventory().addItem(51, research);
+            
+            // Set proto data
+            settle.setChange(change.toProto());
+            rewards.toItemTemplateStream().forEach(settle::addTowerRewards);
+            
+            // Save tower tickets
+            this.getPlayer().getProgress().addWeeklyTowerTicketLog(tickets);
+        }
         
         // Complete
         return rsp;

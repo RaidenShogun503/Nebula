@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-
+import emu.nebula.data.custom.CharGemAttrGroupDef;
 import emu.nebula.data.resources.*;
 
 import lombok.Getter;
@@ -93,6 +93,7 @@ public class GameData {
     // ===== Story =====
     @Getter private static DataTable<StoryDef> StoryDataTable = new DataTable<>();
     @Getter private static DataTable<StorySetSectionDef> StorySetSectionDataTable = new DataTable<>();
+    @Getter private static DataTable<StoryEvidenceDef> StoryEvidenceDataTable = new DataTable<>();
     
     // ===== Daily Quests =====
     @Getter private static DataTable<DailyQuestDef> DailyQuestDataTable = new DataTable<>();
